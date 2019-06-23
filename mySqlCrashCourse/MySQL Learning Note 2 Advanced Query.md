@@ -641,6 +641,119 @@ WHERE Date(order_date) = '2005-09-01';
 
 
 
+## Chapter 12. Summarizing Data
+
+ Supported functions 
+
+**Table 12.1. SQL Aggregate Functions**
+
+| Function  | Description                            |
+| :-------- | :------------------------------------- |
+| `AVG()`   | Returns a column’s average value       |
+| `COUNT()` | Returns the number of rows in a column |
+| `MAX()`   | Returns a column’s highest value       |
+| `MIN()`   | Returns a column’s lowest value        |
+| `SUM()`   | Returns the sum of a column’s values   |
+
+### 12.1 The `AVG()` Function 
+
+- Example: average of a specific column. 
+
+```mysql
+SELECT AVG(prod_price) AS avg_price
+FROM products;
+```
+
+- Example: average of specific columns and rows 
+
+```mysql
+SELECT AVG(prod_price) AS avg_price 
+FROM products
+WHERE vend_id = 1003;
+```
+
+
+
+### 12.2 The `COUNT()` Function 
+
+- Example: count rows in a table 
+
+```mysql
+SELECT COUNT(*) AS num_cust
+FROM customers;
+```
+
+- Example: count rows with restrict: count customers with an email address 
+
+```mysql
+SELECT COUNT(cust_email) AS num_cust
+FROM customers;
+```
+
+
+
+### 12.3 The `MAX()`  and `MIN()` Function 
+
+- Returns the highest value in a specified column
+
+```mysql
+SELECT MAX(prod_price) AS max_price
+FROM products;
+```
+
+> ### TIP
+>
+> **Using MAX() with Non-Numeric Data.** Although `MAX()` is usually used to find the highest numeric or date values, MySQL allows it to be used to return the highest value in any column including textual columns. When used with textual data, `MAX()` returns the row that would be the last if the data were sorted by that column.
+
+
+
+- `MIN()` does the exact opposite of `MAX()`. It returns the lowest value in a specified column. 
+
+```mysql 
+SELECT MIN(prod_price) AS min_price
+FROM products;
+```
+
+
+
+### 12.4 The `SUM()` Function 
+
+`SUM()` is used to return the sum(total) of the values in a specific column. 
+
+- Example 1: get total quantity of an order
+
+```mysql
+SELECT SUM(quantity) AS items_ordered
+FROM orderitems
+WHERE order_num = 20005;
+```
+
+- Example 2: get total price 
+
+```mysql
+SELECT SUM(item_price*quantity) AS total_price
+FROM orderitems
+WHERE order_num = 20005;
+```
+
+
+
+### 12.5 Combining Aggregate Functions 
+
+- Example 
+
+```mysql
+SELECT COUNT(*) AS num_items
+       MIN(prod_price) AS price_min,
+       MAX(prod_price) AS price_max,
+       AVG(prod_price) AS price_avg
+FROM products;
+```
+
+
+
+## Chapter 13. Grouping Data
+
 
 
 
