@@ -754,6 +754,166 @@ FROM products;
 
 ## Chapter 13. Grouping Data
 
+Grouping enables you to divide data into logical sets so you can perform aggregate calculations on each group.
+
+### 13.1 Creating Groups 
+
+- Example: Count each vend's product number
+
+```mysql
+SELECT vend_id, COUNT(*) AS num_prods
+FROM products
+GROUP BY vend_id;
+```
+
+
+
+### 13.2 Filtering Groups 
+
+**You’ve already seen the `WHERE` clause in action (introduced in [Chapter 6](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch06.html), “Filtering Data”). But `WHERE` does not work here because `WHERE` filters specific rows, not groups. As a matter of fact, `WHERE` has no idea what a group is.**
+
+So what do you use instead of `WHERE`? MySQL provides yet another clause for this purpose: the `HAVING` clause. `HAVING` is very similar to `WHERE`. In fact, all types of `WHERE` clauses you learned about thus far can also be used with `HAVING`. The only difference is that `WHERE` filters rows and `HAVING` filters groups.
+
+> ### TIP
+>
+> **HAVING Supports All of WHERE’s Operators.** In [Chapter 6](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch06.html) and [Chapter 7](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch07.html), “Advanced Data Filtering,” you learned about `WHERE` clause conditions (including wildcard conditions and clauses with multiple operators). All the techniques and options you learned about `WHERE` can be applied to `HAVING`. The syntax is identical; just the keyword is different.
+
+- Example : Filtering rows 
+
+```mysql
+SELECT cust_id, COUNT(*) AS orders
+FROM orders
+GROUP BY cust_id
+HAVING COUNT(*) >= 2;
+```
+
+#### 13.2.1 Using `WHERE` and `HAVING` together 
+
+- Example: lists all vendors who have `2` or more products priced at `10` or more
+
+```mysql
+SELECT vend_id, COUNT(*) AS num_prods
+FROM products
+WHERE prdo_price >= 10
+GROUP BY vend_id
+HAVING COUNT(*) >= 2;
+```
+
+
+
+### 13.3 Grouping and Sorting
+
+It is important to understand that `GROUP BY` and `ORDER BY` are very different, even though they often accomplish the same thing. [Table 13.1](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch13.html#ch13table01) summarizes the differences between them.
+
+**Table 13.1. ORDER BY Versus GROUP BY**
+
+| `ORDER BY`                                           | `GROUP BY`                                                   |
+| :--------------------------------------------------- | :----------------------------------------------------------- |
+| Sorts generated output.                              | Groups rows. The output might not be in group order, however. |
+| Any columns (even columns not selected) may be used. | Only selected columns or expressions columns may be used, and every selected column expression must be used. |
+| Never required.                                      | Required if using columns (or expressions) with aggregate functions. |
+
+- Example 
+
+```mysql
+SELECT order_num, SUM(quantity*item_price) AS ordertotal
+FROM orderitems
+GROUP BY order_num
+HAVING SUM(quantity*item_price) >= 50
+ORDER BY ordertotal;
+```
+
+
+
+## Chapter 14. Working with Subqueries
+
+### 14.1 Filtering by Subquery
+
+Now suppose you wanted a list of all the customers who ordered item `TNT2`. What would you have to do to retrieve this information? Here are the steps:
+
+1. Retrieve the order numbers of all orders containing item `TNT2`.
+2. Retrieve the customer ID of all the customers who have orders listed in the order numbers returned in the previous step.
+3. Retrieve the customer information for all the customer IDs returned in the previous step.
+
+Each of these steps can be executed as a separate query. By doing so, you use the results returned by one `SELECT` statement to populate the `WHERE` clause of the next `SELECT`statement.
+
+- Step 1: Retrieving the `order_num`column for all order items with a `prod_id` of `TNT2`. The output lists the two orders containing this item:
+
+```mysql
+SELECT order_num
+FROM orderitems
+WHERE prod_id = 'TNT2';
+```
+
+- Step 2:  Retrieving the customer IDs associated with orders `20005` and `20007`.
+
+```mysql
+SELECT cust_id
+FROM orders 
+WHERE order_num IN (20005, 20007);
+```
+
+- Step 3: Combine the queires by turning the first (the one that returned order numbers ) into a subquery.
+
+```mysql
+SELECT cust_id
+FROM orders 
+WHERE order_num IN (SELECT order_num 
+                    FROM orderitems
+                    WHERE prod_id = 'TNT2');
+```
+
+- Step 4: You now have the IDs of all the customers who ordered item `TNT2`. The next step is to retrieve the customer information for each of those customer IDs. 
+
+```mysql
+SELECT cust_name, cust_contact
+FROM customers
+WHERE cust_id IN (SELECT cust_id
+                  FROM orders
+                  WHERE order_num IN (SELECT order_num
+                                      FROM orderitems
+                                      WHERE prod_id = 'TNT2'));
+```
+
+
+
+> ### CAUTION
+>
+> **Subqueries and Performance.** The code shown here works, and it achieves the desired result. However, using subqueries is not always the most efficient way to perform this type of data retrieval, although it might be. More on this is in [Chapter 15](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch15.html), “Joining Tables,” where you will revisit this same example.
+
+
+
+### 14.2 Using Subqueries As Calculated Fields
+
+Suppose you want to display the total number of orders placed by every customer in your `customers` table. Orders are stored in the `orders` table along with the appropriate customer ID.
+
+To perform this operation, follow these steps:
+
+1. Retrieve the list of customers from the `customers` table.
+2. For each customer retrieved, count the number of associated orders in the `orders` table.
+
+- Input
+
+```mysql
+SELECT cust_name,
+       cust_state,
+       (SELECT COUNT(*)
+        FROM orders
+        WHERE orders.cust_id = customers.cust_id) AS orders
+FROM customers
+ORDER BY cust_name;
+```
+
+
+
+- Analysis : This `SELECT` statement returns three columns for every customer in the `customers` table: `cust_name`, `cust_state`, and `orders`. `orders` is a calculated field that is set by a subquery provided in parentheses. That subquery is executed once for every customer retrieved.
+
+
+
+> ### NOTE
+>
+> **Always More Than One Solution.** As explained earlier in this chapter, although the sample code shown here works, it is often not the most efficient way to perform this type of data retrieval. You will revisit this example in a later chapter.
+
 
 
 
