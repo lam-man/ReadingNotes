@@ -2,7 +2,7 @@
 
 [TOC]
 
-## 1. Chapter 15. Joining Tablies 
+## 1. Chapter 15. Joining Tables 
 
 **Foreign Key:** A column in one table that contains the primary key values from another table, thus defining the relationships between tables. 
 
@@ -22,14 +22,12 @@
 
 Creating a join is very simple. You must specify all the tables to be included and how they are related to each other. Look at the following example:
 
-
-
 - Input 
 
   ```mysql
   SELECT vend_name, prod_name, prod_price
   FROM vendors, products
-  WHERE venders.vend_id = products.vend_id
+  WHERE vendors.vend_id = products.vend_id
   ORDER BY vend_name, prod_name
   ```
 
@@ -44,8 +42,16 @@ The join you have been using so far is called an *equijoin*—a join based on th
   ```mysql
   SELECT vend_name, prod_name, prod_price
   FROM vendors INNER JOIN products
-   ON vendors.vend_id = products.vend_id;
+  ON vendors.vend_id = products.vend_id;
   ```
+
+- Pattern of INNER JOIN
+
+```mysql
+SELECT column1, column2, column3 .... 
+FROM table1 INNER JOIN table2
+ON table1.same_column = table2.same_column;
+```
 
 
 
