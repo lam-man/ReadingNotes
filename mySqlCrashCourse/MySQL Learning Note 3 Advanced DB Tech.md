@@ -75,14 +75,14 @@ SQL imposes no limit to the number of tables that may be joined in a `SELECT` st
 
 
 
-## Chapter 16. Creating Advanced Joins 
+## 2. Chapter 16. Creating Advanced Joins 
 
 ### 2.1 Using Table Aliases
 
 - Why table alias:
 
   - To shorten the SQL syntax
-  - To enable multiple uses of hte same table within a single SELECT statement. 
+  - To enable multiple uses of the same table within a single SELECT statement. 
 
 - Example: 
 
@@ -121,27 +121,199 @@ Suppose that a problem was found with a product (item id `DTNTR`), and you there
 
 Whenever tables are joined, at least one column appears in more than one table (the columns being joined). Standard joins (the inner joins you learned about in the previous chapter) return all data, even multiple occurrences of the same column. A *natural join* simply eliminates those multiple occurrences so only one of each column is returned.
 
+**The truth is, every inner join you have created thus far is actually a natural join, and you will probably never even need an inner join that is not a natural join.**
+
 
 
 #### 2.2.3 Outer Joins 
 
-Most joins relate rows in one table with rows in another. But occasionally, you want to include rows that have no related rows. 
+Most joins relate rows in one table with rows in another. But occasionally, you want to include rows that have no related rows.  For example, you might use joins to accomplish the following tasks:
+
+- Count how many orders each customer placed, including customers who have yet to place an order
+- List all products with order quantities, including products not ordered by anyone
+- Calculate average sale sizes, taking into account customers who have not yet placed an order
+
+In each of these examples, the join includes table rows that have no associated rows in the related table. This type of join is called an *outer join*.
+
+- Example: Inner Join
+
+```mysql
+SELECT customers.cust_id, orders.order_num
+FROM customers INNER JOIN orders
+ ON customers.cust_id = orders.cust_id;
+```
+
+- Inner Join result:
+
+```
++---------+-----------+
+| cust_id | order_num |
++---------+-----------+
+|   10001 |     20005 |
+|   10001 |     20009 |
+|   10003 |     20006 |
+|   10004 |     20007 |
+|   10005 |     20008 |
++---------+-----------+
+```
+
+- Example: Left Outter Join
+
+```mysql
+SELECT customers.cust_id, orders.order_num
+FROM customers LEFT OUTER JOIN orders
+ ON customers.cust_id = orders.cust_id;
+```
+
+- Left Outter Join result: 
+
+```
++---------+-----------+
+| cust_id | order_num |
++---------+-----------+
+|   10001 |     20005 |
+|   10001 |     20009 |
+|   10002 |      NULL |
+|   10003 |     20006 |
+|   10004 |     20007 |
+|   10005 |     20008 |
++---------+-----------+
+```
 
 
 
+### 2.3 Using Joins with Aggregate Functions
+
+You want to retrieve a list of all customers and the number of orders that each has placed. The following code uses the `COUNT()` function to achieve this:
+
+- Code
+
+```mysql
+SELECT customers.cust_name,
+       customers.cust_id,
+       COUNT(orders.order_num) AS num_ord
+FROM customers INNER JOIN orders
+ ON customers.cust_id = orders.cust_id
+GROUP BY customers.cust_id;
+```
+
+- Result
+
+```
++----------------+---------+---------+
+| cust_name      | cust_id | num_ord |
++----------------+---------+---------+
+| Coyote Inc.    |   10001 |       2 |
+| Mouse House    |   10002 |       0 |
+| Wascals        |   10003 |       1 |
+| Yosemite Place |   10004 |       1 |
+| E Fudd         |   10005 |       1 |
++----------------+---------+---------+
+```
 
 
 
+## 3. Chapter 17. Combining Queries
+
+### 3.1 Creating Combined Queries 
+
+SQL queries are combined using the `UNION` operator. Using `UNION`, multiple `SELECT` statements can be specified, and their results can be combined into a single result set.
+
+#### 3.1.1 Using `UNION`
+
+Using `UNION` is simple enough. All you do is specify each `SELECT` statement and place the keyword `UNION` between each.
+
+Let’s look at an example. You need a list of all products costing `5` or less. You also want to include all products made by vendors `1001` and `1002`, regardless of price.
+
+- Using two separate SQL select: Select all products that have price `<=` 5
+
+```mysql
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE prod_price <= 5;
+```
+
+- Uing two separate SQL select: Select all products made by vendor `1001` and `1002`
+
+```mysql
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE vend_id IN (1001,1002);
+```
+
+- Using `UNION`
+
+```mysql
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE prod_price <= 5
+UNION
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE vend_id IN (1001,1002);
+```
+
+#### 3.1.2 Using `OR`
+
+As a point of reference, here is the same query using multiple `WHERE` clauses instead of a `UNION`:
+
+```mysql
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE prod_price <= 5
+  OR vend_id IN (1001,1002);
+```
 
 
 
+### 3.2 `UION` Rules
+
+As you can see, unions are very easy to use. But a few rules govern exactly which can be combined:
+
+- A `UNION` must be comprised of two or more `SELECT` statements, each separated by the keyword `UNION` (so, if combining four `SELECT` statements, three `UNION` keywords would be used).
+- Each query in a `UNION` must contain the same columns, expressions, or aggregate functions (although columns need not be listed in the same order).
+- Column datatypes must be compatible: They need not be the exact same type, but they must be of a type that MySQL can implicitly convert (for example, different numeric types or different date types).
+
+Aside from these basic rules and restrictions, unions can be used for any data retrieval tasks.
 
 
 
+### 3.3 Including or Eliminating Duplicate Rows `UNION ALL`
+
+Go back to the preceding section titled “[Using `UNION`](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch17.html#ch17lev2sec1)” and look at the sample `SELECT` statements used. You’ll notice that when executed individually, the first `SELECT` statement returns four rows, and the second `SELECT` statement returns five rows. However, when the two `SELECT` statements are combined with a `UNION`, only eight rows are returned, not nine.
+
+The `UNION` automatically removes any duplicate rows from the query result set (in other words, it behaves just as multiple `WHERE` clause conditions in a single `SELECT` would). Because vendor `1002` creates a product that costs less than `5`, that row was returned by both `SELECT` statements. When the `UNION` was used, the duplicate row was eliminated.
+
+This is the default behavior of `UNION`, but you can change this if you so desire. If you do, in fact, want all occurrences of all matches returned, you can use `UNION ALL` instead of `UNION`.
+
+```mysql
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE prod_price <= 5
+UNION ALL
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE vend_id IN (1001,1002);
+```
 
 
 
+### 3.4 Sorting Combined Query Results
 
+`SELECT` statement output is sorted using the `ORDER BY` clause. When combining queries with a `UNION`, only one `ORDER BY` clause may be used, and it must occur after the final `SELECT` statement. There is very little point in sorting part of a result set one way and part another way, and so multiple `ORDER BY` clauses are not allowed.
+
+- Example 
+
+```mysql
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE prod_price <= 5
+UNION
+SELECT vend_id, prod_id, prod_price
+FROM products
+WHERE vend_id IN (1001,1002)
+ORDER BY vend_id, prod_price;
+```
 
 
 
