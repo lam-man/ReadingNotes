@@ -317,15 +317,175 @@ ORDER BY vend_id, prod_price;
 
 
 
+## 4. Chapter 19. Inserting Data
+
+`INSERT` is used to insert (add) rows to a database table. `INSERT` can be used in several ways:
+
+- To insert a single complete row
+- To insert a single partial row
+- To insert multiple rows
+- To insert the results of a query
+
+### 4.1 Inserting Complete Rows 
+
+- Example 
+
+```mysql
+INSERT INTO Customers
+VALUES(NULL,
+   'Pep E. LaPew',
+   '100 Main Street',
+   'Los Angeles',
+   'CA',
+   '90046',
+   'USA',
+   NULL,
+   NULL);
+```
+
+>  The first column, `cust_id`, is also `NULL`. This is because that column is automatically incremented by MySQL each time a row is inserted. You’d not want to specify a value (that is MySQL’s job), and nor could you omit the column (as already stated, every column must be listed), and so a `NULL` value is specified (it is ignored by MySQL, which inserts the next available `cust_id` value in its place).
+
+- To make the insert not depend on the order of columns, you need to specify the column name: 
+
+```mysql
+INSERT INTO customers(cust_name,
+   cust_address,
+   cust_city,
+   cust_state,
+   cust_zip,
+   cust_country,
+   cust_contact,
+   cust_email)
+VALUES('Pep E. LaPew',
+   '100 Main Street',
+   'Los Angeles',
+   'CA',
+   '90046',
+   'USA',
+   NULL,
+   NULL);
+```
 
 
 
+> ### TIP
+>
+> **Always Use a Columns List.** As a rule, never use `INSERT` without explicitly specifying the column list. This will greatly increase the probability that your SQL will continue to function in the event that table changes occur.
+
+> ### CAUTION
+>
+> **Omitting Columns.** You may omit columns from an `INSERT` operation if the tabledefinition so allows. One of the following conditions must exist:
+>
+> - The column is defined as allowing `NULL` values (no value at all).
+> - A default value is specified in the table definition. This means the default value will be used if no value is specified.
+>
+> If you omit a value from a table that does not allow `NULL` values and does not have a default, MySQL generates an error message, and the row is not inserted.
+
+> ### TIP
+>
+> **Improving Overall Performance.** Databases are frequently accessed by multiple clients, and it is MySQL’s job to manage which requests are processed and in which order. `INSERT` operations can be time consuming (especially if there are many indexes to be updated), and this can hurt the performance of `SELECT` statements that are waiting to be processed.
+>
+> If data retrieval is of utmost importance (as it usually is), you can instruct MySQL to lower the priority of your `INSERT` statement by adding the keyword `LOW_PRIORITY` in between `INSERT` and `INTO`, like this:
+>
+> ```
+> INSERT LOW_PRIORITY INTO
+> ```
+>
+> Incidentally, this also applies to the `UPDATE` and `DELETE` statements that you’ll learn about in the next chapter.
 
 
 
+### 4.2 Inserting Multiple Rows 
+
+- Insert with multiple `INSERT` statements and separate with `;`.
+
+```mysql
+INSERT INTO customers(cust_name,
+   cust_address,
+   cust_city,
+   cust_state,
+   cust_zip,
+   cust_country)
+VALUES('Pep E. LaPew',
+   '100 Main Street',
+   'Los Angeles',
+   'CA',
+   '90046',
+   'USA');
+INSERT INTO customers(cust_name,
+   cust_address,
+   cust_city,
+   cust_state,
+   cust_zip,
+   cust_country)
+VALUES('M. Martian',
+   '42 Galaxy Way',
+   'New York',
+   'NY',
+   '11213',
+   'USA');
+```
+
+- Insert with one `INSERT` statement 
+
+```mysql
+INSERT INTO customers(cust_name,
+   cust_address,
+   cust_city,
+   cust_state,
+   cust_zip,
+   cust_country)
+VALUES(
+        'Pep E. LaPew',
+        '100 Main Street',
+        'Los Angeles',
+        'CA',
+        '90046',
+        'USA'
+     ),
+      (
+        'M. Martian',
+        '42 Galaxy Way',
+        'New York',
+        'NY',
+        '11213',
+        'USA'
+   );
+```
+
+> ### TIP
+>
+> **Improving INSERT Performance.** This technique can improve the performance of your database processing, as MySQL will process multiple insertions in a single `INSERT` faster than it will multiple `INSERT` statements.
 
 
 
+### 4.3 Inserting Retrieved Data
+
+Suppose you want to merge a list of customers from another table into your `customers` table. Instead of reading one row at a time and inserting it with `INSERT`, you can do the following:
+
+```mysql
+INSERT INTO customers(cust_id,
+    cust_contact,
+    cust_email,
+    cust_name,
+    cust_address,
+    cust_city,
+    cust_state,
+    cust_zip,
+    cust_country)
+SELECT cust_id,
+    cust_contact,
+    cust_email,
+    cust_name,
+    cust_address,
+    cust_city,
+    cust_state,
+    cust_zip,
+    cust_country
+FROM custnew;
+```
+
+The `SELECT` statement used in an `INSERT SELECT` can include a `WHERE` clause to filter the data to be inserted.
 
 
 
