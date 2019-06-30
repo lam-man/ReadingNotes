@@ -489,13 +489,257 @@ The `SELECT` statement used in an `INSERT SELECT` can include a `WHERE` clause t
 
 
 
+## 5. Chapter 20. Updating and Deleting Data
+
+### 5.1 Updating Data
+
+To update (modify) data in a table the `UPDATE` statement is used. `UPDATE` can be used in two ways:
+
+- To update specific rows in a table
+- To update all rows in a table
 
 
 
+Example to update **one column** in a table:
+
+```mysql
+UPDATE customers 
+SET cust_email = 'elmer@fudd.com'
+WHERE cust_id = 10005;
+```
 
 
 
+Example to update **multiple columns** in a table: 
 
+```mysql
+UPDATE customers 
+SET cust_name = 'The Fudds'
+    cust_email = 'elmer@fudd.com'
+WHERE cust_id = 10005;
+```
+
+
+
+How to handle errors in updating: 
+
+> ### TIP
+>
+> **The IGNORE Keyword.** If your `UPDATE` statement updates multiple rows and an error occurs while updating one or more of those rows, the entire `UPDATE` operation is cancelled (and any rows updated before the error occurred are restored to their original values). To continue processing updates, even if an error occurs, use the `IGNORE` keyword, like this:
+>
+> ```mysql
+> UPDATE IGNORE customers ...
+> ```
+
+
+
+Delete a column's value, you can set it to `NULL` (assuming the table is defined to allow `NULL` values). You can do this as follows:
+
+```mysql
+UPDATE customers 
+SET cust_email = NULL
+WHERE cust_id = 10005;
+```
+
+
+
+### 5.2 Deleting Data
+
+> ### CAUTION
+>
+> **Don’t Omit the WHERE Clause.** Special care must be exercised when using `DELETE` because it is all too easy to mistakenly delete every row from your table.
+
+
+
+To delete (remove) data from a table, the `DELETE` statement is used. `DELETE` can be used in two ways:
+
+- To delete specific rows from a table
+- To delete all rows from a table
+
+
+
+Example to delete a **single row** :
+
+```mysql
+DELETE FROM customers 
+WHERE cust_id = 10006;
+```
+
+
+
+To delete all rows in a table: 
+
+> ### NOTE
+>
+> **Table Contents, Not Tables.** The `DELETE` statement deletes rows from tables, even all rows from tables. But `DELETE` never deletes the table itself.
+
+> ### TIP
+>
+> **Faster Deletes.** If you really do want to delete all rows from a table, don’t use `DELETE`. Instead, use the `TRUNCATE TABLE` statement that accomplished the same thing but does it much quicker (`TRUNCATE` actually drops and recreates the table, instead of deleting each row individually).
+
+
+
+### 5.3 Guidelines for Updating and Deleting Data
+
+Here are some best practices that many SQL programmers follow:
+
+- Never execute an `UPDATE` or a `DELETE` without a `WHERE` clause unless you really do intend to update and delete every row.
+- Make sure every table has a primary key (refer to [Chapter 15](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch15.html), “Joining Tables,” if you have forgotten what this is), and use it as the `WHERE` clause whenever possible. (You may specify individual primary keys, multiple values, or value ranges.)
+- Before you use a `WHERE` clause with an `UPDATE` or a `DELETE`, first test it with a `SELECT` to make sure it is filtering the right records—it is far too easy to write incorrect `WHERE`clauses.
+- Use database enforced referential integrity (refer to [Chapter 15](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch15.html) for this one, too) so MySQL will not allow the deletion of rows that have data in other tables related to them.
+
+
+
+## 6. Chapter 21. Creating and Manipulating Tables 
+
+### 6.1 Basic Table Creation
+
+- Example 
+
+```mysql
+CREATE TABLE customers (
+  cust_id					int 			NOT NULL AUTO_INCREMENT,
+  cust_name				char(5)		NOT NULL,
+  cust_address		char(50)	NULL ,
+  cust_city				char(50)	NULL ,
+  cust_state   char(5)   NULL ,
+  cust_zip     char(10)  NULL ,
+  cust_country char(50)  NULL ,
+  cust_contact char(50)  NULL ,
+  cust_email   char(255) NULL ,
+  PRIMARY KEY (cust_id)
+) ENGINE=InnoDB;
+```
+
+
+
+> ### TIP
+>
+> **Handling Existing Tables.** When you create a new table, the table name specified must not exist or you’ll generate an error. To prevent accidental overwriting, SQL requires that you first manually remove a table (see later sections for details) and then re-create it, rather than just overwriting it.
+>
+> If you want to create a table only if it does not already exist, specify `IF NOT EXISTS` after the table name. This does not check to see that the schema of the existing table matches the one you are about to create. It simply checks to see if the table name exists, and only proceeds with table creation if it does not.
+
+### 6.2 Working with Primary Key
+
+- Example of a primary key made up of multiple columns:
+
+```mysql
+CREATE TABLE orderitems
+(
+  order_num  int          NOT NULL ,
+  order_item int          NOT NULL ,
+  prod_id    char(10)     NOT NULL ,
+  quantity   int          NOT NULL ,
+  item_price decimal(8,2) NOT NULL ,
+  PRIMARY KEY (order_num, order_item)
+) ENGINE=InnoDB;
+```
+
+### 6.3 Specifying Default Values 
+
+MySQL enables you to specify default values to be used if no value is specified when a row is inserted. Default values are specified using the `DEFAULT` keyword in the column definitions in the `CREATE TABLE` statement.
+
+- Example Input 
+
+```mysql
+CREATE TABLE orderitems
+(
+  order_num  int          NOT NULL ,
+  order_item int          NOT NULL ,
+  prod_id    char(10)     NOT NULL ,
+  quantity   int          NOT NULL  DEFAULT 1,
+  item_price decimal(8,2) NOT NULL ,
+  PRIMARY KEY (order_num, order_item)
+) ENGINE=InnoDB;
+```
+
+> ### CAUTION
+>
+> **Functions Are Not Allowed.** Unlike most DBMSs, MySQL does not allow the use of functions as `DEFAULT` values; only constants are supported.
+
+> ### TIP
+>
+> **Using DEFAULT Instead of NULL Values.** Many database developers use `DEFAULT` values instead of `NULL` columns, especially in columns that will be used in calculations or data groupings.
+
+
+
+### 6.4 Engine Types 
+
+MySQL has an internal engine that actually manages and manipulates data. When you use the `CREATE TABLE` statement, that engine is used to actually create the tables, and when you use the `SELECT` statement or perform any other database processing, the engine is used internally to process your request. For the most part, the engine is buried within the DBMS and you need not pay much attention to it.
+
+But unlike every other DBMS, MySQL does not come with a single engine. Rather, it ships with several engines, all buried within the MySQL server, and all capable of executing commands such as `CREATE TABLE` and `SELECT`.
+
+So why bother shipping multiple engines? Because they each have different capabilities and features, and being able to pick the right engine for the job gives you unprecedented power and flexibility.
+
+Of course, you are free to totally ignore database engines. If you omit the `ENGINE=` statement, the default engine is used (most likely `MyISAM`), and most of your SQL statements will work as is. But not all of them will, and that is why this is important (and why two engines are used in the sample tables used in this book).
+
+Here are several engines of which to be aware:
+
+- `InnoDB` is a transaction-safe engine (see [Chapter 26](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch26.html), “Managing Transaction Processing”). It does not support full-text searching.
+- `MEMORY` is functionally equivalent to `MyISAM`, but as data is stored in memory (instead of on disk) it is extremely fast (and ideally suited for temporary tables).
+- `MyISAM` is a very high-performance engine. It supports full-text searching (see [Chapter 18](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch18.html), “Full-Text Searching”), but does not support transactional processing.
+
+> ### CAUTION
+>
+> **Foreign Keys Can’t Span Engines.** There is one big downside to mixing engine types. Foreign keys (used to enforce referential integrity, as explained in [Chapter 1](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch01.html), “Understanding SQL”) cannot span engines. That is, a table using one engine cannot have a foreign key referring to a table that uses another engine.
+
+
+
+### 6.5 Updating Tables 
+
+To update table definitions, the `ALTER TABLE` statement is used. But, ideally, tables should never be altered after they contain data. You should spend sufficient time anticipating future needs during the table design process so extensive changes are not required later on.
+
+
+
+- Add a column to a table 
+
+```mysql
+ALTER TABLE vendors
+ADD vend_phone CHAR(20);
+```
+
+- Remove a column from a table 
+
+```mysql
+ALTER TABLE vendors
+DROP COLUMN vend_phone;
+```
+
+
+
+#### 6.5.1 Add foreign key into table
+
+One common use for `ALTER TABLE` is to define foreign keys. The following is the code used to define the foreign keys used by the tables in this book:
+
+```mysql
+ALTER TABLE orderitems
+ADD CONSTRAINT fk_orderitems_orders
+FOREIGN KEY (order_num) REFERENCES orders (order_num);
+
+ALTER TABLE orderitems
+ADD CONSTRAINT fk_orderitems_products FOREIGN KEY (prod_id)
+REFERENCES products (prod_id);
+
+ALTER TABLE orders
+ADD CONSTRAINT fk_orders_customers FOREIGN KEY (cust_id)
+REFERENCES customers (cust_id);
+
+ALTER TABLE products
+ADD CONSTRAINT fk_products_vendors
+FOREIGN KEY (vend_id) REFERENCES vendors (vend_id);
+```
+
+- Deleting Tables 
+
+```mysql
+DROP TABLE customers2;
+```
+
+- Renaming Tables 
+
+```mysql
+RENAME TABLE customers2 TO customers;
+```
 
 
 
