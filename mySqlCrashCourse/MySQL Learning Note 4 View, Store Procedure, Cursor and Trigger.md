@@ -50,7 +50,7 @@ For the most part, after views are created, they can be used in the same way as 
 
 - Views are created using the `CREATE VIEW` statement.
 - To view the statement used to create a view, use `SHOW CREATE VIEW` *viewname;*.
-- To remove a view, the `DROP` statement is used. The syntax is simply `DROP VIEW` *viewname;*.
+- To remove a view, the `DROP` statement is used. The syntax is simply `DROP VIEW` *viewname;*
 - To update a view you may use the `DROP` statement and then the `CREATE` statement again, or just use `CREATE OR REPLACE VIEW`, which will create it if it does not exist and replace it if it does.
 
 ### 1.4 Using Views to Simplify Complex Joins
@@ -136,33 +136,11 @@ In other words, there are three primary benefits—simplicity, security, and per
 
 
 
-### 2.2 Using Stored Procedures 
+### 2.2 Creating Stored Procedures 
 
-#### 2.2.1 Executing Stored Procedures 
-
-MySQL refers to stored procedure execution as *calling*, and so the MySQL statement to execute a stored procedure is simply `CALL`. `CALL` takes the name of the stored procedure and any parameters that need to be passed to it. Take a look at this example:
-
-• **Input**
+- Example 
 
 ```mysql
-CALL productpricing(@pricelow,
-                    @pricehigh,
-                    @priceaverage);
-```
-
-• **Analysis**
-
-Here a stored procedure named `productpricing` is executed; it calculates and returns the lowest, highest, and average product prices.
-
-Stored procedures might or might not display results, as you will see shortly.
-
-#### 2.2.2 Creating Stored Procedures 
-
-As already explained, writing a stored procedure is not trivial. To give you a taste for what is involved, let’s look at a simple example—a stored procedure that returns the average product price. Here is the code:
-
-• **Input**
-
-```mysql 
 CREATE PROCEDURE productpricing()
 BEGIN
    SELECT Avg(prod_price) AS priceaverage
@@ -170,21 +148,174 @@ BEGIN
 END;
 ```
 
-#### 2.2.3 Dropping Stored Procedures
+> ### NOTE
+>
+> **mysql Command-line Client Delimiters.** If you are using the mysql command-line utility, pay careful attention to this note.
+>
+> The default MySQL statement delimiter is `;` (as you have seen in all of the MySQL statement used thus far). However, the mysql command-line utility also uses `;` as a delimiter. If the command-line utility were to interpret the `;` characters inside of the stored procedure itself, those would not end up becoming part of the stored procedure, and that would make the SQL in the stored procedure syntactically invalid.
+>
+> The solution is to temporarily change the command-line utility delimiter, as seen here:
+>
+> ```
+> DELIMITER //
+> 
+> CREATE PROCEDURE productpricing()
+> BEGIN
+>    SELECT Avg(prod_price) AS priceaverage
+>    FROM products;
+> END //
+> 
+> DELIMITER ;
+> ```
+>
+> Here, `DELIMITER //` tells the command-line utility to use `//` as the new end of statement delimiter, and you will notice that the `END` that closes the stored procedure is defined as `END //` instead of the expected `END;`. This way the `;` within the stored procedure body remains intact and is correctly passed to the database engine. And then, to restore things back to how they were initially, the statement closes with a `DELIMITER ;`.
+>
+> Any character may be used as the delimiter except for `\`.
+>
+> If you are using the mysql command-line utility, keep this in mind as you work through this chapter.
 
-After they are created, stored procedures remain on the server, ready for use, until dropped. The drop command (similar to the statement seen [Chapter 21](https://learning.oreilly.com/library/view/mysql-crash-course/0672327120/ch21.html), “Creating and Manipulating Tables”) removes the stored procedure from the server.
+- Executing stored procedures 
 
-To remove the stored procedure we just created, use the following statement:
-
-• **Input**
-
+```mysql
+CALL productpricing();
 ```
+
+
+
+### 2.3 Using Stored Procedures 
+
+#### 2.3.1 Show & Dropping Stored Procedures
+
+- Example of showing 
+
+```mysql
+SHOW CREATE PROCEDURE productpricing;
+```
+
+- Example of dropping
+
+```mysql
 DROP PROCEDURE productpricing;
 ```
+
+- Drop when exist
 
 > ### TIP
 >
 > **Drop Only If It Exists.** `DROP PROCEDURE` will throw an error if the named procedure does not actually exist. To delete a procedure if it exists (and not throw an error if it does not), use `DROP PROCEDURE IF EXISTS`.
+
+
+
+#### 2.3.2 Executing Stored Procedures with Parameters
+
+> ### NEW TERM
+>
+> **Variable.** A named location in memory, used for temporary storage of data.
+
+- Creating Stored Procedure with variables 
+
+```mysql
+CREATE PROCEDURE productpricing(
+   OUT pl DECIMAL(8,2),
+   OUT ph DECIMAL(8,2),
+   OUT pa DECIMAL(8,2)
+)
+BEGIN
+   SELECT Min(prod_price)
+   INTO pl
+   FROM products;
+   SELECT Max(prod_price)
+   INTO ph
+   FROM products;
+   SELECT Avg(prod_price)
+   INTO pa
+   FROM products;
+END;
+```
+
+MySQL refers to stored procedure execution as *calling*, and so the MySQL statement to execute a stored procedure is simply `CALL`. `CALL` takes the name of the stored procedure and any parameters that need to be passed to it. Take a look at this example:
+
+- **Input**
+
+```mysql
+CALL productpricing(@pricelow,
+                    @pricehigh,
+                    @priceaverage);
+```
+
+- **Analysis**
+
+Here a stored procedure named `productpricing` is executed; it calculates and returns the lowest, highest, and average product prices.
+
+Stored procedures might or might not display results, as you will see shortly.
+
+> ### NOTE
+>
+> **Variable Names.** All MySQL variable names must begin with `@`.
+
+- How to use variables:
+
+```mysql
+SELECT @priceaverage;
+```
+
+```mysql
+SELECT @pricehigh, @pricelow, @priceaverage;
+```
+
+
+
+#### 2.3.3 Create Stored Procedures with `IN` and `OUT` Parameters
+
+Here is another example, this time using both `IN` and `OUT` parameters. `ordertotal` accepts an order number and returns the total for that order:
+
+- Input
+
+```mysql
+CREATE PROCEDURE ordertotal(
+   IN onumber INT,
+   OUT ototal DECIMAL(8,2)
+)
+BEGIN
+   SELECT Sum(item_price*quantity)
+   FROM orderitems
+   WHERE order_num = onumber
+   INTO ototal;
+END;
+```
+
+
+
+- Call and get result 
+
+```mysql
+CALL ordertotal(20005, @total);
+SELECT @total;
+```
+
+
+
+### 2.4 Building Intelligent Stored Procedures 
+
+Consider this scenario. You need to obtain order totals as before, but also need to add sales tax to the total, but only for some customers (perhaps the ones in your own state). Now you need to do several things:
+
+- Obtain the total (as before).
+- Conditionally add tax to the total.
+- Return the total (with or without tax).
+
+That’s a perfect job for a stored procedure:
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
