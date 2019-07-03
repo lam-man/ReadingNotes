@@ -83,7 +83,7 @@ For the most part, after views are created, they can be used in the same way as 
 
 
 
-#### 1.5 Updating Views
+### 1.5 Updating Views
 
 All of the views thus far have been used with `SELECT` statements. But can view data be updated? The answer is that it depends.
 
@@ -304,6 +304,268 @@ Consider this scenario. You need to obtain order totals as before, but also need
 - Return the total (with or without tax).
 
 That’s a perfect job for a stored procedure:
+
+```mysql
+-- Name: ordertotal
+-- Parameters: onumber = order number
+--             taxable = 0 if not taxable, 1 if taxable
+--             ototal = order total variable
+
+CREATE PROCEDURE ordertotal(
+   IN onumber INT,
+   IN taxable BOOLEAN,
+   OUT ototal DECIMAL(8,2)
+) COMMENT 'Obtain order total, optionally adding tax'
+BEGIN
+
+   -- Declare variable for total
+   DECLARE total DECIMAL(8,2);
+   -- Declare tax percentage
+   DECLARE taxrate INT DEFAULT 6;
+
+   -- Get the order total
+   SELECT Sum(item_price*quantity)
+   FROM orderitems
+   WHERE order_num = onumber
+   INTO total;
+
+   -- Is this taxable?
+   IF taxable THEN
+      -- Yes, so add taxrate to the total
+      SELECT total+(total/100*taxrate) INTO total;
+   END IF;
+
+   -- And finally, save to out variable
+   SELECT total INTO ototal;
+
+END;
+```
+
+
+
+> ### TIP
+>
+> **The COMMENT Keyword.** The stored procedure for this example included a `COMMENT` value in the `CREATE PROCEDURE` statement. This is not required, but if specified, is displayed in `SHOW PROCEDURE STATUS` results.
+
+
+
+## 3. Chapter 24. Using Cursors 
+
+Sometimes there is a need to step through rows forward or backward and one or more at a time. This is what cursors are used for. A cursor is a database query stored on the MySQL server—not a `SELECT` statement, but the result set retrieved by that statement. Once the cursor is stored, applications can scroll or browse up and down through the data as needed.
+
+
+
+> ### NOTE
+>
+> **Only in Stored Procedures.** Unlike most DBMSs, MySQL cursors may only be used within stored procedures (and functions).
+
+
+
+Using cursors involves several distinct steps:
+
+1. Before a cursor can be used it must be declared (defined). This process does not actually retrieve any data; it merely defines the `SELECT` statement to be used.
+2. After it is declared, the cursor must be opened for use. This process actually retrieves the data using the previously defined `SELECT` statement.
+3. With the cursor populated with data, individual rows can be fetched (retrieved) as needed.
+4. When it is done, the cursor must be closed.
+
+
+
+### 3.1 Working with Cursors 
+
+### 3.1.1 Creating Cursors
+
+Cursors are created using the `DECLARE` statement. `DECLARE` names the cursor and takes a `SELECT` statement, complete with `WHERE` and other clauses if needed. 
+
+- Example 
+
+```mysql
+CREATE PROCEDURE processorders()
+BEGIN 
+    DECLARE ordernumbers CURSOR
+    FOR
+    SELECT order_num FROM orders;
+END;
+```
+
+- Analysis
+
+This stored procedure does not do a whole lot. A `DECLARE` statement is used to define and name the cursor—in this case `ordernumbers`. Nothing is done with the cursor, and as soon as the stored procedure finishes processing it will cease to exist (as it is local to the stored procedure itself).
+
+#### 3.1.2 Opening and Closing Cursors 
+
+- Open curosr
+
+```mysql
+OPEN ordernumbers;
+```
+
+When the `OPEN` statement is processed, the query is executed, and the retrieved data is stored for subsequent browsing and scrolling.
+
+- Close cursor 
+
+```mysql
+CLOSE ordernumbers;
+```
+
+`CLOSE` frees up any internal memory and resources used by the cursor, and so every cursor should be closed when it is no longer needed.
+
+After a cursor is closed, it cannot be reused without being opened again. However, a cursor does not need to be declared again to be used; an `OPEN` statement is sufficient.
+
+```mysql
+CREATE PROCEDURE processorders()
+BEGIN 
+	-- Declare the cursor 
+	DECLARE ordernumbers CURSOR
+	FOR 
+	SELECT order_num FROM orders;
+	
+	-- Open the cursor 
+	OPEN ordernumbers;
+	
+	-- Close the cursor
+	CLOSE ordernumbers;
+END;
+```
+
+This stored procedure declares, opens, and closes a cursor. However, nothing is done with the retrieved data.
+
+
+
+### 3.2 Using Cursor Data
+
+After a cursor is opened, each row can be accessed individually using a `FETCH` statement. `FETCH` specifies what is to be retrieved (the desired columns) and where retrieved data should be stored. It also advances the internal row pointer within the cursor so the next `FETCH` statement will retrieve the next row (and not the same one over and over).
+
+- Simple Example 
+
+```mysql
+CREATE PROCEDURE processorders()
+BEGIN
+
+   -- Declare local variables
+   DECLARE o INT;
+
+   -- Declare the cursor
+   DECLARE ordernumbers CURSOR
+   FOR
+   SELECT order_num FROM orders;
+
+   -- Open the cursor
+   OPEN ordernumbers;
+
+   -- Get order number
+   FETCH ordernumbers INTO o;
+
+   -- Close the cursor
+   CLOSE ordernumbers;
+
+END;
+```
+
+
+
+- Usage Example 
+
+```mysql
+CREATE PROCEDURE processorders()
+BEGIN
+
+   -- Declare local variables
+   DECLARE done BOOLEAN DEFAULT 0;
+   DECLARE o INT;
+
+   -- Declare the cursor
+   DECLARE ordernumbers CURSOR
+   FOR
+   SELECT order_num FROM orders;
+
+   -- Declare continue handler
+   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done=1;
+
+   -- Open the cursor
+   OPEN ordernumbers;
+
+   -- Loop through all rows
+   REPEAT
+
+      -- Get order number
+      FETCH ordernumbers INTO o;
+
+   -- End of loop
+   UNTIL done END REPEAT;
+
+   -- Close the cursor
+   CLOSE ordernumbers;
+
+END;
+```
+
+Like the previous example, this example uses `FETCH` to retrieve the current `order_num` into a declared variable named `o`. Unlike the previous example, the `FETCH` here is within a `REPEAT` so it is repeated over and over until `done` is true (as specified by `UNTIL done END REPEAT;`). To make this work, variable `done` is defined with a `DEFAULT 0` (false, not done). So how does `done` get set to true when done? The answer is this statement:
+
+```mysql
+DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done=1;
+```
+
+This statement defines a `CONTINUE HANDLER`, code that will be executed when a condition occurs. Here it specifies that when `SQLSTATE '02000'` occurs, then `SET done=1`. And `SQLSTATE '02000'` is a *not found* condition and so it occurs when `REPEAT` cannot continue because there are no more rows to loop through.
+
+> ### CAUTION
+>
+> **DECLARE Statement Sequence.** There is specific order in which `DECLARE` statements, if used, must be issued. Local variables defined with `DECLARE` must be defined before any cursors or handlers are defined, and handlers must be defined after any cursors. Failure to follow this sequencing will generate an error message.
+
+> ### NOTE
+>
+> **REPEAT or LOOP?** In addition to the `REPEAT` statement used here, MySQL also supports a `LOOP` statement that can be used to repeat code until the `LOOP` is manually exited using a `LEAVE` statement. In general, the syntax of the `REPEAT` statement makes it better suited for looping through cursors.
+
+
+
+```mysql
+CREATE PROCEDURE processorders()
+BEGIN
+
+   -- Declare local variables
+   DECLARE done BOOLEAN DEFAULT 0;
+   DECLARE o INT;
+   DECLARE t DECIMAL(8,2);
+
+   -- Declare the cursor
+   DECLARE ordernumbers CURSOR
+   FOR
+   SELECT order_num FROM orders;
+
+   -- Declare continue handler
+   DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done=1;
+
+   -- Create a table to store the results
+   CREATE TABLE IF NOT EXISTS ordertotals
+      (order_num INT, total DECIMAL(8,2));
+
+   -- Open the cursor
+   OPEN ordernumbers;
+
+   -- Loop through all rows
+   REPEAT
+
+      -- Get order number
+      FETCH ordernumbers INTO o;
+
+      -- Get the total for this order
+      CALL ordertotal(o, 1, t);
+
+      -- Insert order and total into ordertotals
+      INSERT INTO ordertotals(order_num, total)
+      VALUES(o, t);
+
+   -- End of loop
+   UNTIL done END REPEAT;
+
+   -- Close the cursor
+   CLOSE ordernumbers;
+
+END;
+```
+
+This stored procedure returns no data, but it does create and populate another table that can then be viewed using a simple `SELECT` statement.
+
+
 
 
 
