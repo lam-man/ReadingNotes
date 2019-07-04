@@ -567,6 +567,44 @@ This stored procedure returns no data, but it does create and populate another t
 
 
 
+## 4. Chapter 25. Using Triggers 
+
+A *trigger* is a MySQL statement (or a group of statements enclosed within `BEGIN` and `END` statements) that are automatically executed by MySQL in response to any of these statements:
+
+- `DELETE`
+- `INSERT`
+- `UPDATE`
+
+No other MySQL statements support triggers.
+
+
+
+### 4.1 Creating Triggers 
+
+When creating a trigger you need to specify four pieces of information:
+
+- The unique trigger name
+- The table to which the trigger is to be associated
+- The action that the trigger should respond to (`DELETE`, `INSERT`, or `UPDATE`)
+- When the trigger should be executed (before or after processing)
+
+Triggers are created using the `CREATE TRIGGER` statement. 
+
+```mysql
+CREATE TRIGGER newproduct AFTER INSERT ON products
+FOR EACH ROW SELECT 'Product added' AS '';
+```
+
+
+
+This chapter is buggy, please see the following link for more about Trigger. 
+
+https://dev.mysql.com/doc/refman/5.5/en/trigger-syntax.html
+
+
+
+
+
 
 
 
