@@ -2,7 +2,11 @@
 
 
 
-[TOC]
+[Chapter 1: Understanding SQL](##Chapter-1:-Understanding-SQL) \
+[1.1 Primary Key](###1.1.-Primary-Key) \
+[1.2 MySQL Primary Key Rules](###1.2.-MySQLPrimary-Key-Rules) \
+[1.3. Primary Key Best Practices](###1.3.-Primary-Key-Best-Practices) \
+
 
 ## Chapter 1: Understanding SQL 
 
